@@ -1,0 +1,43 @@
+WWW-BashOrg
+
+A simple a module to obtain either a random quote or a quote by number from
+L<http://bash.org/>.
+
+INSTALLATION
+
+To install this module, run the following commands:
+
+	perl Build.PL
+	./Build
+	./Build test
+	./Build install
+
+SUPPORT AND DOCUMENTATION
+
+After installing, you can find documentation for this module with the
+perldoc command.
+
+    perldoc WWW::BashOrg
+
+You can also look for information at:
+
+    RT, CPAN's request tracker
+        http://rt.cpan.org/NoAuth/Bugs.html?Dist=WWW-BashOrg
+
+    AnnoCPAN, Annotated CPAN documentation
+        http://annocpan.org/dist/WWW-BashOrg
+
+    CPAN Ratings
+        http://cpanratings.perl.org/d/WWW-BashOrg
+
+    Search CPAN
+        http://search.cpan.org/dist/WWW-BashOrg/
+
+
+COPYRIGHT AND LICENCE
+
+Copyright (C) 2009 'Zoffix
+
+This program is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself.
+
