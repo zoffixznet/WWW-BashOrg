@@ -167,7 +167,7 @@ either L<http://bash.org/> or L<http://qdb.us/>.
     );
 
 Returns a newly baked C<WWW::BashOrg> object. All arguments are options, so far there
-are only two arguments is available:
+are only two arguments are available:
 
 =head3 C<ua>
 
