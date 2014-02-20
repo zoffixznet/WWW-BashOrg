@@ -1,5 +1,12 @@
 Revision history for WWW-BashOrg
 
+1.001001  2014-02-20
+        - Merged qdb support and cache implementation written
+          by JBARRETT
+        - Converted to dzil
+        - Got rid of Class::Data::Accessor, which is deprecated
+        - Moved author tests to xt/
+
 0.0104  2013-10-30
         - Minor changes to comply with specs and Kwalitee game.
 

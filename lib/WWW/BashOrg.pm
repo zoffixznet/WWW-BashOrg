@@ -3,7 +3,8 @@ package WWW::BashOrg;
 use warnings;
 use strict;
 
-our $VERSION = '0.0104';
+# VERSION
+
 use LWP::UserAgent;
 use HTML::TokeParser::Simple;
 use HTML::Entities;
@@ -68,27 +69,33 @@ sub random {
     $self->quote( undef );
     $self->error( undef );
 
-    if ( !$self->{'cache'.$site} || scalar @{$self->{'cache'.$site}} < 1 ) {
-        my $res = $self->{ua}->get( ( $site eq 'bash' ) ? "http://bash.org/?random1" : "http://www.qdb.us/random" );
+    unless ( @{ $self->{'cache'.$site} || [] } ) {
+        my $res = $self->{ua}->get(
+            $site eq 'bash'
+                ? "http://bash.org/?random1"
+                : "http://www.qdb.us/random"
+        );
+
         unless ( $res->is_success ) {
             $self->error("Network error: " . $res->status_line );
             return;
         }
 
-        @{$self->{'cache'.$site}} = $self->_parse_quote( $res->decoded_content, $site );
-        unless ( defined $self->{'cache'.$site} ) {
+        @{ $self->{'cache'.$site} }
+        = $self->_parse_quote( $res->decoded_content, $site );
+
+        unless ( @{ $self->{'cache'.$site} } ) {
             $self->error('Quote not found');
             return;
         }
     }
 
-    return $self->quote( pop $self->{'cache'.$site} );
+    return $self->quote( pop @{ $self->{'cache'.$site} } );
 }
 
 sub _parse_quote {
-    my ( $self, $content, $site ) = @_;
+    my ( $self, $content ) = @_;
 
-    $site = $self->_normalise_site($site);
     my $p = HTML::TokeParser::Simple->new( \$content );
 
     my $get_quote;
@@ -109,7 +116,7 @@ sub _parse_quote {
         if ( $get_quote and ( $t->is_end_tag('p') || $t->is_end_tag('span') ) ) {
             $quote =~ s/&nbsp;/ /g;
             push @quotes, decode_entities $quote;
-            $quote = ""; $get_quote = 0;
+            $quote = ''; $get_quote = 0;
         }
     }
 
@@ -125,6 +132,8 @@ sub _normalise_site {
 
 1;
 __END__
+
+=encoding utf8
 
 =head1 NAME
 
@@ -156,6 +165,8 @@ either L<http://bash.org/> or L<http://qdb.us/>.
 =head1 CONSTRUCTOR
 
 =head2 C<new>
+
+=for pod_spiffy in key value | out object
 
     my $b = WWW::BashOrg->new;
 
@@ -192,12 +203,15 @@ fetching quotes from L<http://bash.org/> or L<http://qdb.us/>. B<Defaults to:>
         default_site  => 'qdb'
     );
 
-B<Optional>. Which site to retrieve quotes from by default when not specified in the method
-parameters, 'qdb' or 'bash'. Default is 'bash'.
+B<Optional>. Which site to retrieve quotes from by default when not
+specified in the method
+parameters, C<'qdb'> or C<'bash'>. Default is C<'bash'>.
 
 =head1 METHODS
 
 =head2 C<get_quote>
+
+=for pod_spiffy in scalar scalar optional | out scalar | out error undef or list
 
     my $quote = $b->get_quote('202477')
         or die $b->error;
@@ -205,20 +219,27 @@ parameters, 'qdb' or 'bash'. Default is 'bash'.
     $quote = $b->get_quote('1622', 'qdb')
         or die $b->error;
 
-The first argument, the number of the quote to fetch, is mandatory. You may also specify
-which site to retrieve the quote from. If an error occurs, returns
+The first argument, the number of the quote to fetch, is mandatory.
+You may also optionally specify
+which site to retrieve the quote from
+(C<'qdb'> or C<'bash'>). If an error occurs, returns
 C<undef> and the reason for failure can be obtained using C<error()> method.
 
 =head2 C<random>
 
+=for pod_spiffy in scalar optional | out scalar | out error undef or list
+
     my $quote = $b->random('bash')
         or die $b->error;
 
-Has one optional argument, which site to return quote from. Returns a random quote.
+Has one optional argument, which site to return quote from
+(C<'qdb'> or C<'bash'>). Returns a random quote.
 If an error occurs, returns C<undef> and the reason for failure can be obtained using
 C<error()> method.
 
 =head2 C<error>
+
+=for pod_spiffy in no args | out scalar
 
     my $quote = $b->random
         or die $b->error;
@@ -228,16 +249,20 @@ the reason for failure.
 
 =head2 C<quote>
 
+=for pod_spiffy in no args | out scalar
+
     my $last_quote = $b->quote;
 
     my $last_quote = "$b";
 
-Takes no arguments. Must be called after a successfull call to either C<random()> or
+Takes no arguments. Must be called after a successful call to either C<random()> or
 C<get_quote()>. Returns the same return value as last C<random()> or C<get_quote()> returned.
 B<This method is overloaded> thus you can interpolate C<WWW::Bashorg> in a string to obtain
 the quote.
 
 =head2 C<ua>
+
+=for pod_spiffy in object | out object
 
     my $old_ua = $b->ua;
 
@@ -251,62 +276,61 @@ will be used for any future requests.
 
 =head2 C<default_site>
 
+=for pod_spiffy in scalar optional | out scalar
+
     if ( $b->default_site eq 'qdb' ) {
         $b->default_site('bash');
     }
 
-Returns current default site to retrieve quotes from. Takes an optional argument to
-change this setting.
+Returns current default site to retrieve quotes from. Takes an optional argument to change this setting (C<'qdb'> or C<'bash'>).
 
-=head1 AUTHOR
+=for pod_spiffy hr
 
-'Zoffix, C<< <'zoffix at cpan.org'> >>
-(L<http://haslayout.net/>, L<http://zoffix.com/>, L<http://zofdesign.com/>)
+=head1 REPOSITORY
+
+=for pod_spiffy start github section
+
+Fork this module on GitHub:
+L<https://github.com/zoffixznet/WWW-BashOrg>
+
+=for pod_spiffy end github section
 
 =head1 BUGS
 
-Please report any bugs or feature requests to C<bug-www-bashorg at rt.cpan.org>, or through
-the web interface at L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=WWW-BashOrg>.  I will be notified, and then you'll
-automatically be notified of progress on your bug as I make changes.
+=for pod_spiffy start bugs section
 
+To report bugs or request features, please use
+L<https://github.com/zoffixznet/WWW-BashOrg/issues>
 
-=head1 SUPPORT
+If you can't access GitHub, you can email your request
+to C<bug-WWW-BashOrg at rt.cpan.org>
 
-You can find documentation for this module with the perldoc command.
+=for pod_spiffy end bugs section
 
-    perldoc WWW::BashOrg
+=head1 AUTHOR
 
-You can also look for information at:
+=for pod_spiffy start author section
 
-=over 4
+=for pod_spiffy author ZOFFIX
 
-=item * RT: CPAN's request tracker
+=for text Zoffix Znet <zoffix at cpan.org>
 
-L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=WWW-BashOrg>
+=for pod_spiffy end author section
 
-=item * AnnoCPAN: Annotated CPAN documentation
+=head1 CONTRIBUTORS
 
-L<http://annocpan.org/dist/WWW-BashOrg>
+=for pod_spiffy start contributors section
 
-=item * CPAN Ratings
+=for pod_spiffy author JBARRETT
 
-L<http://cpanratings.perl.org/d/WWW-BashOrg>
+=for text John Barrett <john@jbrt.org>
 
-=item * Search CPAN
+=for pod_spiffy end contributors section
 
-L<http://search.cpan.org/dist/WWW-BashOrg/>
+=head1 LICENSE
 
-=back
-
-
-
-=head1 COPYRIGHT & LICENSE
-
-Copyright 2009 'Zoffix, all rights reserved.
-
-This program is free software; you can redistribute it and/or modify it
-under the same terms as Perl itself.
-
+You can use and distribute this module under the same terms as Perl itself.
+See the C<LICENSE> file included in this distribution for complete
+details.
 
 =cut
-
