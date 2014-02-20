@@ -14,6 +14,7 @@ __PACKAGE__->mk_classaccessors(qw/
     ua
     error
     quote
+    default_site
 /);
 
 sub new {
@@ -24,6 +25,7 @@ sub new {
         agent   => 'Opera 9.5',
         timeout => 30,
     ) unless defined $args{ua};
+    $args{default_site} ||= 'bash';
 
     my $self = bless {}, $class;
 
@@ -33,8 +35,9 @@ sub new {
 }
 
 sub get_quote {
-    my ( $self, $num ) = @_;
+    my ( $self, $num, $site ) = @_;
 
+    $site = $self->_normalise_site($site);
     $self->quote( undef );
     $self->error( undef );
 
@@ -43,13 +46,13 @@ sub get_quote {
         return;
     }
 
-    my $res = $self->{ua}->get("http://bash.org/?quote=$num");
+    my $res = $self->{ua}->get( ( ($site eq 'bash') ? "http://bash.org/?quote=" : "http://www.qdb.us/" ) . $num );
     unless ( $res->is_success ) {
         $self->error("Network error: " . $res->status_line );
         return;
     }
 
-    my $quote = $self->_parse_quote( $res->decoded_content );
+    my $quote = ( $self->_parse_quote( $res->decoded_content, $site ) )[0];
     unless ( defined $quote ) {
         $self->error('Quote not found');
         return;
@@ -59,35 +62,40 @@ sub get_quote {
 }
 
 sub random {
-    my $self = shift;
+    my ($self, $site) = @_;
 
+    $site = $self->_normalise_site($site);
     $self->quote( undef );
     $self->error( undef );
 
-    my $res = $self->{ua}->get("http://bash.org/?random1");
-    unless ( $res->is_success ) {
-        $self->error("Network error: " . $res->status_line );
-        return;
+    if ( !$self->{'cache'.$site} || scalar @{$self->{'cache'.$site}} < 1 ) {
+        my $res = $self->{ua}->get( ( $site eq 'bash' ) ? "http://bash.org/?random1" : "http://www.qdb.us/random" );
+        unless ( $res->is_success ) {
+            $self->error("Network error: " . $res->status_line );
+            return;
+        }
+
+        @{$self->{'cache'.$site}} = $self->_parse_quote( $res->decoded_content, $site );
+        unless ( defined $self->{'cache'.$site} ) {
+            $self->error('Quote not found');
+            return;
+        }
     }
 
-    my $quote = $self->_parse_quote( $res->decoded_content );
-    unless ( defined $quote ) {
-        $self->error('Quote not found');
-        return;
-    }
-
-    return $self->quote( $quote );
+    return $self->quote( pop $self->{'cache'.$site} );
 }
 
 sub _parse_quote {
-    my ( $self, $content ) = @_;
+    my ( $self, $content, $site ) = @_;
 
+    $site = $self->_normalise_site($site);
     my $p = HTML::TokeParser::Simple->new( \$content );
 
     my $get_quote;
     my $quote;
+    my @quotes;
     while ( my $t = $p->get_token ) {
-        if ( $t->is_start_tag('p')
+        if ( ( $t->is_start_tag('p') || $t->is_start_tag('span') )
             and defined $t->get_attr('class')
             and $t->get_attr('class') eq 'qt'
         ) {
@@ -98,13 +106,21 @@ sub _parse_quote {
             $quote .= $t->as_is;
         }
 
-        if ( $get_quote and $t->is_end_tag('p') ) {
+        if ( $get_quote and ( $t->is_end_tag('p') || $t->is_end_tag('span') ) ) {
             $quote =~ s/&nbsp;/ /g;
-            return decode_entities $quote;
+            push @quotes, decode_entities $quote;
+            $quote = ""; $get_quote = 0;
         }
     }
 
-    return undef;
+    return @quotes;
+}
+
+sub _normalise_site {
+    my ( $self, $site ) = @_;
+    $site ||= $self->default_site;
+    ( $site ne 'bash' && $site ne 'qdb' ) and $site = $self->default_site;
+    return $site;
 }
 
 1;
@@ -112,7 +128,7 @@ __END__
 
 =head1 NAME
 
-WWW::BashOrg - simple module to obtain quotes from http://bash.org/
+WWW::BashOrg - simple module to obtain quotes from http://bash.org/ and http://www.qdb.us/
 
 =head1 SYNOPSIS
 
@@ -135,7 +151,7 @@ WWW::BashOrg - simple module to obtain quotes from http://bash.org/
 =head1 DESCRIPTION
 
 A simple a module to obtain either a random quote or a quote by number from
-L<http://bash.org/>.
+either L<http://bash.org/> or L<http://qdb.us/>.
 
 =head1 CONSTRUCTOR
 
@@ -150,8 +166,8 @@ L<http://bash.org/>.
         )
     );
 
-Returns a newly baked C<WWW::BashOrg> object. All arguments are options, so far only
-one argument is available:
+Returns a newly baked C<WWW::BashOrg> object. All arguments are options, so far there
+are only two arguments is available:
 
 =head3 C<ua>
 
@@ -159,16 +175,25 @@ one argument is available:
         ua  => LWP::UserAgent->new(
             agent   => 'Opera 9.5',
             timeout => 30,
-        )
+        ),
     );
 
 B<Optional>. Takes an L<LWP::UserAgent> object as a value. This object will be used for
-fetching quotes from L<http://bash.org/>. B<Defaults to:>
+fetching quotes from L<http://bash.org/> or L<http://qdb.us/>. B<Defaults to:>
 
     LWP::UserAgent->new(
         agent   => 'Opera 9.5',
         timeout => 30,
     )
+
+=head3 C<default_site>
+
+    my $b = WWW::BashOrg->new(
+        default_site  => 'qdb'
+    );
+
+B<Optional>. Which site to retrieve quotes from by default when not specified in the method
+parameters, 'qdb' or 'bash'. Default is 'bash'.
 
 =head1 METHODS
 
@@ -177,17 +202,21 @@ fetching quotes from L<http://bash.org/>. B<Defaults to:>
     my $quote = $b->get_quote('202477')
         or die $b->error;
 
-Takes one mandatory argument - the number of the quote to fetch. Returns a string with the
-quote that was requested. If an error occurs, returns
+    $quote = $b->get_quote('1622', 'qdb')
+        or die $b->error;
+
+The first argument, the number of the quote to fetch, is mandatory. You may also specify
+which site to retrieve the quote from. If an error occurs, returns
 C<undef> and the reason for failure can be obtained using C<error()> method.
 
 =head2 C<random>
 
-    my $quote = $b->random
+    my $quote = $b->random('bash')
         or die $b->error;
 
-Takes no argumnets. Returns a random quote. If an error occurs, returns
-C<undef> and the reason for failure can be obtained using C<error()> method.
+Has one optional argument, which site to return quote from. Returns a random quote.
+If an error occurs, returns C<undef> and the reason for failure can be obtained using
+C<error()> method.
 
 =head2 C<error>
 
@@ -219,6 +248,15 @@ the quote.
 Returns current L<LWP::UserAgent> object that is used for fetching quotes. Takes one
 option argument that must be an L<LWP::UserAgent> object (or compatible) - this object
 will be used for any future requests.
+
+=head2 C<default_site>
+
+    if ( $b->default_site eq 'qdb' ) {
+        $b->default_site('bash');
+    }
+
+Returns current default site to retrieve quotes from. Takes an optional argument to
+change this setting.
 
 =head1 AUTHOR
 
