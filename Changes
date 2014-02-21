@@ -1,5 +1,9 @@
 Revision history for WWW-BashOrg
 
+1.001002  2014-02-20
+        - Said I got rid of Class::Data::Accessor in the changelog,
+          but forgot to actually update it in the code :)
+
 1.001001  2014-02-20
         - Merged qdb support and cache implementation written
           by JBARRETT

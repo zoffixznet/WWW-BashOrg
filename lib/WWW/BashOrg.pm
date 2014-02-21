@@ -9,9 +9,9 @@ use LWP::UserAgent;
 use HTML::TokeParser::Simple;
 use HTML::Entities;
 use overload q|""| => sub { shift->quote };
-use base 'Class::Data::Accessor';
+use base 'Class::Accessor::Grouped';
 
-__PACKAGE__->mk_classaccessors(qw/
+__PACKAGE__->mk_group_accessors( simple => qw/
     ua
     error
     quote
