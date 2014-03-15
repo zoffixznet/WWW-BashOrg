@@ -1,5 +1,9 @@
 Revision history for WWW-BashOrg
 
+1.001003  2014-03-15
+        - Fixed a broken tree of the test, for the case when the network
+          isn't available
+
 1.001002  2014-02-20
         - Said I got rid of Class::Data::Accessor in the changelog,
           but forgot to actually update it in the code :)

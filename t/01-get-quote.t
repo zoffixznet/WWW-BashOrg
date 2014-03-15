@@ -16,7 +16,7 @@ my $expected = "<VicViper> dorm = jail cell with internet\r\n<SYc"
 
 SKIP:{
     if ( $b->error and $b->error =~ /^Network/ ) {
-        skip 2, 'Got network error: ' . $b->error;
+        skip 'Got network error: ' . $b->error, 2;
     }
 
     is( $q, $expected, 'Got an expected quote' );
